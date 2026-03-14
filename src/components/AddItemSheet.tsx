@@ -1,14 +1,7 @@
-<<<<<<< ours
-import { useState } from 'react';
-import { X } from 'lucide-react';
-import { GroceryItem, Provider, Priority, ValueRating, Category } from '../types';
-import { generateId, allCategories, categoryLabels, categoryEmoji } from '../store';
-=======
 import { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
 import { GroceryItem, Provider, Priority, ValueRating, Category } from '../types';
 import { generateId, allCategories, categoryLabels, categoryEmoji, lookupPrice } from '../store';
->>>>>>> theirs
 
 interface Props {
   providers: Provider[];
@@ -29,8 +22,6 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
   const [notes, setNotes] = useState('');
   const [recurring, setRecurring] = useState(false);
 
-<<<<<<< ours
-=======
   const [priceSuggestion, setPriceSuggestion] = useState<{ price: number; context: string } | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
 
@@ -41,20 +32,19 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
     if (!name.trim() || name.length < 3) { setPriceSuggestion(null); return; }
     if (!selectedProvider?.scrapedText) { setPriceSuggestion(null); return; }
 
-    setLookingUp(true);
     const t = setTimeout(() => {
+      setLookingUp(true);
       const result = lookupPrice(name, selectedProvider.scrapedText!);
       setPriceSuggestion(result);
       setLookingUp(false);
     }, 400);
     return () => clearTimeout(t);
-  }, [name, providerId, selectedProvider]);
+  }, [name, selectedProvider?.scrapedText]);
 
   function applyPriceSuggestion() {
     if (priceSuggestion) setPriceEstimate(priceSuggestion.price.toFixed(2));
   }
 
->>>>>>> theirs
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -67,7 +57,7 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
       isOrganic,
       priority,
       valueRating,
-      priceEstimate: priceEstimate ? parseFloat(priceEstimate) : undefined,
+      priceEstimate: priceEstimate !== '' ? parseFloat(priceEstimate) : undefined,
       notes: notes.trim() || undefined,
       addedAt: new Date().toISOString(),
       ordered: false,
@@ -90,16 +80,6 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           {/* Name */}
           <div className="form-group">
             <label className="form-label">Item name *</label>
-<<<<<<< ours
-            <input
-              className="form-input"
-              placeholder="e.g. Tuscan kale"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-              required
-            />
-=======
             <div style={{ position: 'relative' }}>
               <input
                 className="form-input"
@@ -147,7 +127,6 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
                 <span style={{ fontSize: '0.75rem', color: 'var(--clay)', fontWeight: 500, flexShrink: 0 }}>Use</span>
               </div>
             )}
->>>>>>> theirs
           </div>
 
           {/* Category + Provider row */}
@@ -164,18 +143,12 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
               <label className="form-label">Provider</label>
               <select className="form-select" value={providerId} onChange={e => setProviderId(e.target.value)}>
                 {providers.map(p => (
-<<<<<<< ours
-                  <option key={p.id} value={p.id}>{p.name}</option>
-=======
                   <option key={p.id} value={p.id}>{p.name}{p.scrapedText ? ' ✓' : ''}</option>
->>>>>>> theirs
                 ))}
               </select>
             </div>
           </div>
 
-<<<<<<< ours
-=======
           {/* Hint when no provider data */}
           {selectedProvider && !selectedProvider.scrapedText && (
             <div className="caption" style={{ marginTop: '-8px', marginBottom: '12px', color: 'var(--ink-muted)' }}>
@@ -183,7 +156,6 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
             </div>
           )}
 
->>>>>>> theirs
           {/* Quantity + Price row */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
             <div className="form-group">
@@ -213,25 +185,10 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           <div className="form-group">
             <label className="form-label">Quality</label>
             <div className="chip-group">
-<<<<<<< ours
-              <button
-                type="button"
-                className={`chip ${isOrganic ? 'active-green' : ''}`}
-                onClick={() => setIsOrganic(true)}
-              >
-                🌱 Organic
-              </button>
-              <button
-                type="button"
-                className={`chip ${!isOrganic ? 'active' : ''}`}
-                onClick={() => setIsOrganic(false)}
-              >
-=======
               <button type="button" className={`chip ${isOrganic ? 'active-green' : ''}`} onClick={() => setIsOrganic(true)}>
                 🌱 Organic
               </button>
               <button type="button" className={`chip ${!isOrganic ? 'active' : ''}`} onClick={() => setIsOrganic(false)}>
->>>>>>> theirs
                 Conventional
               </button>
             </div>
@@ -279,25 +236,10 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           <div className="form-group">
             <label className="form-label">Ordering cadence</label>
             <div className="chip-group">
-<<<<<<< ours
-              <button
-                type="button"
-                className={`chip ${recurring ? 'active' : ''}`}
-                onClick={() => setRecurring(true)}
-              >
-                🔄 Weekly staple
-              </button>
-              <button
-                type="button"
-                className={`chip ${!recurring ? 'active' : ''}`}
-                onClick={() => setRecurring(false)}
-              >
-=======
               <button type="button" className={`chip ${recurring ? 'active' : ''}`} onClick={() => setRecurring(true)}>
                 🔄 Weekly staple
               </button>
               <button type="button" className={`chip ${!recurring ? 'active' : ''}`} onClick={() => setRecurring(false)}>
->>>>>>> theirs
                 One-time
               </button>
             </div>
@@ -318,13 +260,6 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
             Add to list
           </button>
         </form>
-<<<<<<< ours
-=======
-
-        <style>{`
-          @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-        `}</style>
->>>>>>> theirs
       </div>
     </div>
   );

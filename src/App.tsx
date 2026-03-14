@@ -1,20 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-<<<<<<< ours
-import { Plus, ListChecks, Store, History } from 'lucide-react';
-import { AppState, GroceryItem, Provider, View, Category } from './types';
-import {
-  loadState, saveState, categoryLabels, categoryEmoji, allCategories,
-  getNextDelivery, formatDate, isUrgent,
-=======
 import { Plus } from 'lucide-react';
 import { AppState, GroceryItem, Provider, View, Category } from './types';
 import {
   loadState, saveState, categoryLabels, categoryEmoji, allCategories,
   getNextDelivery, formatDate, isUrgent, scrapeUrl,
->>>>>>> theirs
 } from './store';
 import AddItemSheet from './components/AddItemSheet';
 import AddProviderSheet from './components/AddProviderSheet';
+import UploadReceiptSheet from './components/UploadReceiptSheet';
 import ItemRow from './components/ItemRow';
 import ProviderCard from './components/ProviderCard';
 
@@ -22,6 +15,7 @@ export default function App() {
   const [state, setState] = useState<AppState>(loadState);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddProvider, setShowAddProvider] = useState(false);
+  const [showUploadReceipt, setShowUploadReceipt] = useState(false);
   const [prefillProviderId, setPrefillProviderId] = useState<string | undefined>();
   const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all');
   const [filterProvider, setFilterProvider] = useState<string>('all');
@@ -73,12 +67,14 @@ export default function App() {
     mutate(s => ({ ...s, items: [...s.items, item] }));
   }
 
+  function addItems(items: GroceryItem[]) {
+    mutate(s => ({ ...s, items: [...s.items, ...items] }));
+  }
+
   function addProvider(p: Provider) {
     mutate(s => ({ ...s, providers: [...s.providers, p] }));
   }
 
-<<<<<<< ours
-=======
   function deleteProvider(id: string) {
     mutate(s => ({
       ...s,
@@ -100,7 +96,6 @@ export default function App() {
     }));
   }
 
->>>>>>> theirs
   function toggleItem(id: string) {
     mutate(s => ({
       ...s,
@@ -361,11 +356,8 @@ export default function App() {
                   items={state.items.filter(i => i.providerId === p.id)}
                   onOrderAll={markAllOrdered}
                   onAddItem={id => openAddItem(id)}
-<<<<<<< ours
-=======
                   onDelete={deleteProvider}
                   onRefreshScrape={refreshProviderScrape}
->>>>>>> theirs
                 />
               ))}
             </div>
@@ -437,13 +429,35 @@ export default function App() {
       )}
 
       {/* ── FAB ── */}
-      <button
-        className="fab"
-        onClick={() => view === 'providers' ? setShowAddProvider(true) : openAddItem()}
-      >
-        <Plus size={18} />
-        {view === 'providers' ? 'Add provider' : 'Add item'}
-      </button>
+      {view === 'list' && (
+        <div style={{ position: 'fixed', bottom: 'var(--space-8)', right: '50%', transform: 'translateX(50%)', maxWidth: 'calc(560px - var(--space-8))', width: 'calc(100% - var(--space-8))', display: 'flex', gap: '8px', zIndex: 20 }}>
+          <button
+            className="fab"
+            style={{ flex: 1, margin: 0 }}
+            onClick={() => openAddItem()}
+          >
+            <Plus size={16} />
+            Add item
+          </button>
+          <button
+            className="fab"
+            style={{ flex: 1, margin: 0 }}
+            onClick={() => setShowUploadReceipt(true)}
+            title="Scan receipt photo"
+          >
+            📸 Scan
+          </button>
+        </div>
+      )}
+      {view !== 'list' && (
+        <button
+          className="fab"
+          onClick={() => view === 'providers' ? setShowAddProvider(true) : null}
+        >
+          <Plus size={18} />
+          {view === 'providers' ? 'Add provider' : 'Add item'}
+        </button>
+      )}
 
       {/* ── Sheets ── */}
       {showAddItem && (
@@ -459,6 +473,14 @@ export default function App() {
         <AddProviderSheet
           onAdd={addProvider}
           onClose={() => setShowAddProvider(false)}
+        />
+      )}
+
+      {showUploadReceipt && state.providers.length > 0 && (
+        <UploadReceiptSheet
+          providerId={state.providers[0].id}
+          onItemsExtracted={addItems}
+          onClose={() => setShowUploadReceipt(false)}
         />
       )}
     </div>

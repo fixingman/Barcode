@@ -1,9 +1,5 @@
-<<<<<<< ours
-import { ShoppingCart, AlertCircle, Clock } from 'lucide-react';
-=======
 import { useState } from 'react';
 import { ShoppingCart, AlertCircle, Clock, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
->>>>>>> theirs
 import { Provider, GroceryItem } from '../types';
 import {
   getNextDelivery,
@@ -17,31 +13,22 @@ interface Props {
   items: GroceryItem[];
   onOrderAll: (providerId: string) => void;
   onAddItem: (providerId: string) => void;
-<<<<<<< ours
-=======
   onDelete: (providerId: string) => void;
   onRefreshScrape: (providerId: string) => Promise<void>;
->>>>>>> theirs
 }
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const today = new Date().getDay();
 
-<<<<<<< ours
-export default function ProviderCard({ provider, items, onOrderAll, onAddItem }: Props) {
-=======
 export default function ProviderCard({ provider, items, onOrderAll, onAddItem, onDelete, onRefreshScrape }: Props) {
+  const today = new Date().getDay();
   const [scraping, setScraping] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
->>>>>>> theirs
   const pending = items.filter(i => !i.ordered);
   const nextDelivery = getNextDelivery(provider);
   const orderDeadline = getOrderDeadline(provider);
   const urgent = isUrgent(provider);
 
-<<<<<<< ours
-=======
   async function handleRefresh() {
     if (!provider.url) return;
     setScraping(true);
@@ -52,21 +39,11 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
     }
   }
 
->>>>>>> theirs
   return (
     <div className={`provider-card ${urgent ? 'urgent' : ''}`}>
       <div className="provider-accent" style={{ background: provider.color }} />
 
       <div className="provider-header">
-<<<<<<< ours
-        <div>
-          <div className="provider-name">{provider.name}</div>
-          {provider.notes && (
-            <div className="caption" style={{ marginTop: '4px' }}>{provider.notes}</div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-=======
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div className="provider-name">{provider.name}</div>
@@ -93,7 +70,6 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
           )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
->>>>>>> theirs
           <span
             className="badge"
             style={{
@@ -118,11 +94,7 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
           {DAY_LABELS.map((d, i) => (
             <div
               key={i}
-<<<<<<< ours
-              className={`day-dot ${provider.deliveryDays.includes(i) ? 'active' : ''} ${i === today ? 'today' : ''}`}
-=======
               className={`day-dot ${provider.deliveryDays.includes(i) ? 'active' : ''}`}
->>>>>>> theirs
               style={i === today && !provider.deliveryDays.includes(i) ? { borderColor: 'var(--ink-muted)' } : {}}
             >
               {d}
@@ -132,21 +104,6 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
 
         {/* Delivery info */}
         {nextDelivery && (
-<<<<<<< ours
-          <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Clock size={13} color="var(--ink-muted)" />
-              <span className="caption">
-                Next delivery: <strong style={{ color: 'var(--ink)' }}>{formatDate(nextDelivery)}</strong>
-              </span>
-            </div>
-            {orderDeadline && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span className="caption" style={{ color: urgent ? 'var(--urgent)' : undefined }}>
-                  Order by: <strong style={{ color: urgent ? 'var(--urgent)' : 'var(--ink)' }}>{formatDate(orderDeadline)}</strong>
-                </span>
-              </div>
-=======
           <div style={{ display: 'flex', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Clock size={13} color="var(--ink-muted)" />
@@ -158,7 +115,6 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
               <span className="caption" style={{ color: urgent ? 'var(--urgent)' : undefined }}>
                 Order by: <strong style={{ color: urgent ? 'var(--urgent)' : 'var(--ink)' }}>{formatDate(orderDeadline)}</strong>
               </span>
->>>>>>> theirs
             )}
           </div>
         )}
@@ -167,17 +123,11 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
           <button
             className="btn btn-ghost"
-<<<<<<< ours
-            style={{ flex: 1, fontSize: '0.8125rem', padding: '8px 12px' }}
-=======
             style={{ flex: 1, fontSize: '0.8125rem', padding: '8px 10px' }}
->>>>>>> theirs
             onClick={() => onAddItem(provider.id)}
           >
             + Add item
           </button>
-<<<<<<< ours
-=======
 
           {provider.url && (
             <button
@@ -192,18 +142,13 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
             </button>
           )}
 
->>>>>>> theirs
           {pending.length > 0 && (
             <button
               className="btn"
               style={{
                 flex: 2,
                 fontSize: '0.8125rem',
-<<<<<<< ours
-                padding: '8px 12px',
-=======
                 padding: '8px 10px',
->>>>>>> theirs
                 background: provider.color,
                 color: 'white',
                 borderRadius: 'var(--radius-pill)',
@@ -215,9 +160,6 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
             </button>
           )}
         </div>
-<<<<<<< ours
-      </div>
-=======
 
         {/* Delete row */}
         <div style={{ marginTop: '8px', borderTop: '1px solid var(--paper-warm)', paddingTop: '8px' }}>
@@ -252,11 +194,6 @@ export default function ProviderCard({ provider, items, onOrderAll, onAddItem, o
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
->>>>>>> theirs
     </div>
   );
 }

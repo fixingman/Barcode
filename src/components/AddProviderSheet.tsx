@@ -1,13 +1,7 @@
 import { useState } from 'react';
-<<<<<<< ours
-import { X } from 'lucide-react';
-import { Provider } from '../types';
-import { generateId } from '../store';
-=======
 import { X, Globe, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { Provider } from '../types';
 import { generateId, scrapeUrl } from '../store';
->>>>>>> theirs
 
 interface Props {
   onAdd: (p: Provider) => void;
@@ -17,40 +11,41 @@ interface Props {
 const PALETTE = ['#4a7c59', '#7c6a3a', '#7c4a3a', '#3a5c7c', '#5c3a7c', '#7c3a5c'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-<<<<<<< ours
-export default function AddProviderSheet({ onAdd, onClose }: Props) {
-  const [name, setName] = useState('');
-=======
 type FetchStatus = 'idle' | 'loading' | 'ok' | 'error';
 
 export default function AddProviderSheet({ onAdd, onClose }: Props) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
->>>>>>> theirs
   const [color, setColor] = useState(PALETTE[0]);
   const [deliveryDays, setDeliveryDays] = useState<number[]>([]);
   const [cutoffDays, setCutoffDays] = useState('1');
   const [notes, setNotes] = useState('');
 
-<<<<<<< ours
-=======
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>('idle');
   const [fetchError, setFetchError] = useState('');
   const [scrapedText, setScrapedText] = useState<string | undefined>();
   const [scrapedAt, setScrapedAt] = useState<string | undefined>();
 
->>>>>>> theirs
   function toggleDay(d: number) {
     setDeliveryDays(prev =>
       prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
     );
   }
 
-<<<<<<< ours
-=======
   async function handleFetchUrl() {
     const trimmed = url.trim();
     if (!trimmed) return;
+
+    // Validate HTTPS before sending to external service
+    try {
+      const u = new URL(trimmed);
+      if (u.protocol !== 'https:') throw new Error();
+    } catch {
+      setFetchStatus('error');
+      setFetchError('Please enter a valid HTTPS URL');
+      return;
+    }
+
     setFetchStatus('loading');
     setFetchError('');
     try {
@@ -72,24 +67,20 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
     }
   }
 
->>>>>>> theirs
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    const parsedCutoff = parseInt(cutoffDays, 10);
     const provider: Provider = {
       id: generateId(),
       name: name.trim(),
       color,
       deliveryDays,
-      orderCutoffDays: parseInt(cutoffDays) || 1,
-<<<<<<< ours
-      notes: notes.trim() || undefined,
-=======
+      orderCutoffDays: isNaN(parsedCutoff) ? 1 : parsedCutoff,
       url: url.trim() || undefined,
       notes: notes.trim() || undefined,
       scrapedText,
       scrapedAt,
->>>>>>> theirs
     };
     onAdd(provider);
     onClose();
@@ -105,8 +96,6 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit}>
-<<<<<<< ours
-=======
           {/* URL — first, so name can be auto-filled */}
           <div className="form-group">
             <label className="form-label">Website URL</label>
@@ -174,7 +163,6 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
           </div>
 
           {/* Name */}
->>>>>>> theirs
           <div className="form-group">
             <label className="form-label">Provider name *</label>
             <input
@@ -182,18 +170,11 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
               placeholder="e.g. Abel & Cole"
               value={name}
               onChange={e => setName(e.target.value)}
-<<<<<<< ours
-              autoFocus
-=======
->>>>>>> theirs
               required
             />
           </div>
 
-<<<<<<< ours
-=======
           {/* Color */}
->>>>>>> theirs
           <div className="form-group">
             <label className="form-label">Colour</label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -216,10 +197,7 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
             </div>
           </div>
 
-<<<<<<< ours
-=======
           {/* Delivery days */}
->>>>>>> theirs
           <div className="form-group">
             <label className="form-label">Delivery days</label>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -236,10 +214,7 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
             </div>
           </div>
 
-<<<<<<< ours
-=======
           {/* Cutoff */}
->>>>>>> theirs
           <div className="form-group">
             <label className="form-label">Order cut-off (days before delivery)</label>
             <input
@@ -252,10 +227,7 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
             />
           </div>
 
-<<<<<<< ours
-=======
           {/* Notes */}
->>>>>>> theirs
           <div className="form-group">
             <label className="form-label">Notes</label>
             <textarea
@@ -270,13 +242,6 @@ export default function AddProviderSheet({ onAdd, onClose }: Props) {
             Add provider
           </button>
         </form>
-<<<<<<< ours
-=======
-
-        <style>{`
-          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        `}</style>
->>>>>>> theirs
       </div>
     </div>
   );
