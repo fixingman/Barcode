@@ -90,6 +90,91 @@ export function lookupPrice(itemName: string, scrapedText: string): PriceSuggest
   return best ? { price: best.price, context: best.context } : null;
 }
 
+export interface ParsedGroceryItem {
+  name: string;
+  quantity: string;
+  priceEstimate?: number;
+  category?: Category;
+  isOrganic?: boolean;
+}
+
+/**
+ * Parse OCR text from a receipt/grocery image and extract item lines.
+ * Returns a list of potential grocery items found in the text.
+ */
+export function parseReceiptText(ocrText: string): ParsedGroceryItem[] {
+  if (!ocrText.trim()) return [];
+
+  const items: ParsedGroceryItem[] = [];
+  const lines = ocrText.split('\n').filter(l => l.trim());
+  const pricePattern = /[£$€](\d+\.?\d{0,2})|(\d+\.?\d{0,2})\s*(?:GBP|USD|EUR|£|$|€)/i;
+
+  // Keywords for categorization
+  const categories = {
+    vegetables: ['broccoli', 'kale', 'spinach', 'carrot', 'potato', 'onion', 'lettuce', 'tomato', 'cucumber', 'pepper', 'cabbage', 'celery', 'bean', 'pea'],
+    fruits: ['apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'melon', 'mango', 'pineapple', 'lemon', 'lime', 'berry'],
+    'dairy-eggs': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'egg', 'dairy'],
+    'meat-fish': ['chicken', 'beef', 'pork', 'lamb', 'fish', 'salmon', 'tuna', 'steak', 'meat'],
+    'bread-bakery': ['bread', 'loaf', 'bagel', 'roll', 'croissant', 'bun', 'cake', 'pastry'],
+    pantry: ['rice', 'pasta', 'oil', 'flour', 'sugar', 'salt', 'spice', 'sauce', 'can', 'jar', 'cereal', 'nuts', 'coffee', 'tea'],
+    drinks: ['juice', 'water', 'soda', 'cola', 'milk', 'coffee', 'tea', 'wine', 'beer', 'drink'],
+  };
+
+  const organicKeywords = ['organic', 'bio', 'natural', 'free-range', 'grass-fed', 'non-gmo'];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length < 3) continue;
+
+    // Skip total/subtotal lines
+    if (/total|subtotal|tax|discount|change|payment/i.test(trimmed)) continue;
+
+    // Extract price if present
+    let priceEstimate: number | undefined;
+    const priceMatch = trimmed.match(pricePattern);
+    if (priceMatch) {
+      const priceStr = priceMatch[1] || priceMatch[2];
+      priceEstimate = parseFloat(priceStr);
+      if (priceEstimate <= 0 || priceEstimate > 500) priceEstimate = undefined;
+    }
+
+    // Extract item name (remove price and quantity from the line)
+    let itemName = trimmed
+      .replace(pricePattern, '')
+      .replace(/\b\d+\s*(?:x|×)\s*\d+g\b|\b\d+\s*(?:pack|box|bunch|bunch|bottle|can|jar)\b/gi, '')
+      .trim();
+
+    if (itemName.length < 2) continue;
+
+    // Detect quantity (e.g., "2x 500g", "1 bunch", "6 pack")
+    const qtyMatch = trimmed.match(/\b(\d+)\s*(?:x|×)?\s*(\d+\s*(?:g|kg|ml|l|oz|lb|pack|box|bunch|bottle|can|jar))\b|(\d+)\s*(pack|box|bunch|bottle|can|jar)\b/i);
+    const quantity = qtyMatch ? qtyMatch[0] : '1';
+
+    // Detect category
+    let category: Category | undefined;
+    const lowerItem = itemName.toLowerCase();
+    for (const [cat, keywords] of Object.entries(categories)) {
+      if (keywords.some(kw => lowerItem.includes(kw))) {
+        category = cat as Category;
+        break;
+      }
+    }
+
+    // Detect organic flag
+    const isOrganic = organicKeywords.some(kw => lowerItem.includes(kw));
+
+    items.push({
+      name: itemName,
+      quantity,
+      priceEstimate,
+      category,
+      isOrganic,
+    });
+  }
+
+  return items;
+}
+
 export const categoryLabels: Record<string, string> = {
   vegetables: 'Vegetables',
   fruits: 'Fruits',
