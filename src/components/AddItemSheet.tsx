@@ -1,7 +1,14 @@
+<<<<<<< ours
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { GroceryItem, Provider, Priority, ValueRating, Category } from '../types';
 import { generateId, allCategories, categoryLabels, categoryEmoji } from '../store';
+=======
+import { useState, useEffect } from 'react';
+import { X, Search } from 'lucide-react';
+import { GroceryItem, Provider, Priority, ValueRating, Category } from '../types';
+import { generateId, allCategories, categoryLabels, categoryEmoji, lookupPrice } from '../store';
+>>>>>>> theirs
 
 interface Props {
   providers: Provider[];
@@ -22,6 +29,32 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
   const [notes, setNotes] = useState('');
   const [recurring, setRecurring] = useState(false);
 
+<<<<<<< ours
+=======
+  const [priceSuggestion, setPriceSuggestion] = useState<{ price: number; context: string } | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  const selectedProvider = providers.find(p => p.id === providerId);
+
+  // Auto-lookup price when name changes (debounced) if provider has scraped data
+  useEffect(() => {
+    if (!name.trim() || name.length < 3) { setPriceSuggestion(null); return; }
+    if (!selectedProvider?.scrapedText) { setPriceSuggestion(null); return; }
+
+    setLookingUp(true);
+    const t = setTimeout(() => {
+      const result = lookupPrice(name, selectedProvider.scrapedText!);
+      setPriceSuggestion(result);
+      setLookingUp(false);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [name, providerId, selectedProvider]);
+
+  function applyPriceSuggestion() {
+    if (priceSuggestion) setPriceEstimate(priceSuggestion.price.toFixed(2));
+  }
+
+>>>>>>> theirs
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -57,6 +90,7 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           {/* Name */}
           <div className="form-group">
             <label className="form-label">Item name *</label>
+<<<<<<< ours
             <input
               className="form-input"
               placeholder="e.g. Tuscan kale"
@@ -65,6 +99,55 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
               autoFocus
               required
             />
+=======
+            <div style={{ position: 'relative' }}>
+              <input
+                className="form-input"
+                placeholder="e.g. Tuscan kale"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                autoFocus
+                required
+                style={{ paddingRight: lookingUp ? '36px' : undefined }}
+              />
+              {lookingUp && (
+                <Search
+                  size={14}
+                  style={{
+                    position: 'absolute', right: '12px', top: '50%',
+                    transform: 'translateY(-50%)', color: 'var(--ink-muted)',
+                    animation: 'pulse 1s ease-in-out infinite',
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Price suggestion pill */}
+            {priceSuggestion && !lookingUp && (
+              <div
+                style={{
+                  marginTop: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  background: 'var(--wheat-light)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                }}
+                onClick={applyPriceSuggestion}
+                title="Click to use this price"
+              >
+                <span style={{ fontSize: '0.8125rem', color: 'var(--clay-deep)' }}>
+                  💰 Found <strong>£{priceSuggestion.price.toFixed(2)}</strong> on {selectedProvider?.name}
+                </span>
+                <span className="caption" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  — {priceSuggestion.context}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--clay)', fontWeight: 500, flexShrink: 0 }}>Use</span>
+              </div>
+            )}
+>>>>>>> theirs
           </div>
 
           {/* Category + Provider row */}
@@ -81,12 +164,26 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
               <label className="form-label">Provider</label>
               <select className="form-select" value={providerId} onChange={e => setProviderId(e.target.value)}>
                 {providers.map(p => (
+<<<<<<< ours
                   <option key={p.id} value={p.id}>{p.name}</option>
+=======
+                  <option key={p.id} value={p.id}>{p.name}{p.scrapedText ? ' ✓' : ''}</option>
+>>>>>>> theirs
                 ))}
               </select>
             </div>
           </div>
 
+<<<<<<< ours
+=======
+          {/* Hint when no provider data */}
+          {selectedProvider && !selectedProvider.scrapedText && (
+            <div className="caption" style={{ marginTop: '-8px', marginBottom: '12px', color: 'var(--ink-muted)' }}>
+              No price data for {selectedProvider.name} yet — fetch their site in Providers to enable auto-prices.
+            </div>
+          )}
+
+>>>>>>> theirs
           {/* Quantity + Price row */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
             <div className="form-group">
@@ -116,6 +213,7 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           <div className="form-group">
             <label className="form-label">Quality</label>
             <div className="chip-group">
+<<<<<<< ours
               <button
                 type="button"
                 className={`chip ${isOrganic ? 'active-green' : ''}`}
@@ -128,6 +226,12 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
                 className={`chip ${!isOrganic ? 'active' : ''}`}
                 onClick={() => setIsOrganic(false)}
               >
+=======
+              <button type="button" className={`chip ${isOrganic ? 'active-green' : ''}`} onClick={() => setIsOrganic(true)}>
+                🌱 Organic
+              </button>
+              <button type="button" className={`chip ${!isOrganic ? 'active' : ''}`} onClick={() => setIsOrganic(false)}>
+>>>>>>> theirs
                 Conventional
               </button>
             </div>
@@ -175,6 +279,7 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
           <div className="form-group">
             <label className="form-label">Ordering cadence</label>
             <div className="chip-group">
+<<<<<<< ours
               <button
                 type="button"
                 className={`chip ${recurring ? 'active' : ''}`}
@@ -187,6 +292,12 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
                 className={`chip ${!recurring ? 'active' : ''}`}
                 onClick={() => setRecurring(false)}
               >
+=======
+              <button type="button" className={`chip ${recurring ? 'active' : ''}`} onClick={() => setRecurring(true)}>
+                🔄 Weekly staple
+              </button>
+              <button type="button" className={`chip ${!recurring ? 'active' : ''}`} onClick={() => setRecurring(false)}>
+>>>>>>> theirs
                 One-time
               </button>
             </div>
@@ -207,6 +318,13 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
             Add to list
           </button>
         </form>
+<<<<<<< ours
+=======
+
+        <style>{`
+          @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        `}</style>
+>>>>>>> theirs
       </div>
     </div>
   );

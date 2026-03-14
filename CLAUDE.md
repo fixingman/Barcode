@@ -7,6 +7,7 @@
 - License: MIT
 - Primary branch: `main`
 <<<<<<< ours
+<<<<<<< ours
 
 ## Project State
 
@@ -47,6 +48,8 @@ Once the tech stack is chosen, update this file with:
 - Environment setup instructions
 - Architecture overview
 =======
+=======
+>>>>>>> theirs
 - Stack: React 18 + TypeScript + Vite 5
 
 ## Design Principles
@@ -93,4 +96,7 @@ src/
 ## Environment Setup
 
 No environment variables required. Pure client-side app.
+<<<<<<< ours
+>>>>>>> theirs
+=======
 >>>>>>> theirs

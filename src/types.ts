@@ -10,6 +10,12 @@ export interface Provider {
   orderCutoffDays: number; // days before delivery to place order
   url?: string;
   notes?: string;
+<<<<<<< ours
+=======
+  // cached scraped content from the provider's website
+  scrapedText?: string;
+  scrapedAt?: string; // ISO date of last fetch
+>>>>>>> theirs
 }
 
 export interface GroceryItem {

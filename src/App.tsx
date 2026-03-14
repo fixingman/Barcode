@@ -1,9 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
+<<<<<<< ours
 import { Plus, ListChecks, Store, History } from 'lucide-react';
 import { AppState, GroceryItem, Provider, View, Category } from './types';
 import {
   loadState, saveState, categoryLabels, categoryEmoji, allCategories,
   getNextDelivery, formatDate, isUrgent,
+=======
+import { Plus } from 'lucide-react';
+import { AppState, GroceryItem, Provider, View, Category } from './types';
+import {
+  loadState, saveState, categoryLabels, categoryEmoji, allCategories,
+  getNextDelivery, formatDate, isUrgent, scrapeUrl,
+>>>>>>> theirs
 } from './store';
 import AddItemSheet from './components/AddItemSheet';
 import AddProviderSheet from './components/AddProviderSheet';
@@ -69,6 +77,30 @@ export default function App() {
     mutate(s => ({ ...s, providers: [...s.providers, p] }));
   }
 
+<<<<<<< ours
+=======
+  function deleteProvider(id: string) {
+    mutate(s => ({
+      ...s,
+      providers: s.providers.filter(p => p.id !== id),
+      items: s.items.filter(i => i.providerId !== id),
+    }));
+    if (filterProvider === id) setFilterProvider('all');
+  }
+
+  async function refreshProviderScrape(id: string) {
+    const provider = state.providers.find(p => p.id === id);
+    if (!provider?.url) return;
+    const text = await scrapeUrl(provider.url);
+    mutate(s => ({
+      ...s,
+      providers: s.providers.map(p =>
+        p.id === id ? { ...p, scrapedText: text, scrapedAt: new Date().toISOString() } : p
+      ),
+    }));
+  }
+
+>>>>>>> theirs
   function toggleItem(id: string) {
     mutate(s => ({
       ...s,
@@ -329,6 +361,11 @@ export default function App() {
                   items={state.items.filter(i => i.providerId === p.id)}
                   onOrderAll={markAllOrdered}
                   onAddItem={id => openAddItem(id)}
+<<<<<<< ours
+=======
+                  onDelete={deleteProvider}
+                  onRefreshScrape={refreshProviderScrape}
+>>>>>>> theirs
                 />
               ))}
             </div>
