@@ -1,31 +1,111 @@
-import { AppState, Provider, Category } from './types';
+import { AppState, Provider, Category, Product, ProductVariant } from './types';
 
 const STORAGE_KEY = 'barcode-v1';
 
-const defaultState: AppState = {
-  providers: [],
-  items: [],
-  sessions: [],
-  activeView: 'list',
-  activeProviderId: null,
+// Extended currency type
+export type CurrencyCode = 'GBP' | 'USD' | 'EUR' | 'AUD' | 'CAD' | 'NZD' | 'SEK' | 'NOK' | 'DKK' | 'CHF';
+
+// Map country codes to currencies
+const countryToCurrency: Record<string, CurrencyCode> = {
+  // Anglophone
+  GB: 'GBP', US: 'USD', CA: 'CAD', AU: 'AUD', NZ: 'NZD',
+  // Euro
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', BE: 'EUR', NL: 'EUR', AT: 'EUR',
+  IE: 'EUR', FI: 'EUR', GR: 'EUR', PT: 'EUR', LU: 'EUR', MT: 'EUR', CY: 'EUR',
+  // Scandinavia
+  SE: 'SEK', NO: 'NOK', DK: 'DKK',
+  // Switzerland
+  CH: 'CHF',
 };
+
+export const currencySymbols: Record<CurrencyCode, string> = {
+  GBP: '£',
+  USD: '$',
+  EUR: '€',
+  AUD: 'A$',
+  CAD: 'C$',
+  NZD: 'NZ$',
+  SEK: 'kr',
+  NOK: 'kr',
+  DKK: 'kr',
+  CHF: 'CHF',
+};
+
+// Locale codes for Intl formatting
+export const currencyLocales: Record<CurrencyCode, string> = {
+  GBP: 'en-GB',
+  USD: 'en-US',
+  EUR: 'de-DE',
+  AUD: 'en-AU',
+  CAD: 'en-CA',
+  NZD: 'en-NZ',
+  SEK: 'sv-SE',
+  NOK: 'nb-NO',
+  DKK: 'da-DK',
+  CHF: 'de-CH',
+};
+
+export const countryNames: Record<string, string> = {
+  // Anglophone
+  GB: 'United Kingdom', US: 'United States', CA: 'Canada', AU: 'Australia', NZ: 'New Zealand',
+  // Euro
+  DE: 'Germany', FR: 'France', IT: 'Italy', ES: 'Spain', BE: 'Belgium', NL: 'Netherlands',
+  AT: 'Austria', IE: 'Ireland', FI: 'Finland', GR: 'Greece', PT: 'Portugal', LU: 'Luxembourg',
+  MT: 'Malta', CY: 'Cyprus',
+  // Scandinavia
+  SE: 'Sweden', NO: 'Norway', DK: 'Denmark',
+  // Switzerland
+  CH: 'Switzerland',
+};
+
+async function detectCountry(): Promise<string> {
+  try {
+    // Use ipapi.co (free, no key needed, returns JSON with country_code)
+    const res = await fetch('https://ipapi.co/json/', { mode: 'cors' });
+    if (!res.ok) throw new Error('IP lookup failed');
+    const data = await res.json();
+    return (data.country_code || 'GB').toUpperCase();
+  } catch {
+    // Fallback to GB (UK)
+    return 'GB';
+  }
+}
+
+function getDefaultState(): AppState {
+  const country = localStorage.getItem('barcode-country') || 'GB';
+  const currency = countryToCurrency[country] || 'GBP';
+  const locale = getLocaleFromCountry(country);
+  return {
+    providers: [],
+    items: [],
+    products: [],
+    productVariants: [],
+    sessions: [],
+    activeView: 'list',
+    activeProviderId: null,
+    currency,
+    country,
+    locale,
+  };
+}
+
+const defaultState: AppState = getDefaultState();
 
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState;
-    const parsed = JSON.parse(raw);
-    return {
-      ...defaultState,
-      providers: Array.isArray(parsed.providers) ? parsed.providers : defaultState.providers,
-      items:     Array.isArray(parsed.items)     ? parsed.items     : defaultState.items,
-      sessions:  Array.isArray(parsed.sessions)  ? parsed.sessions  : defaultState.sessions,
-      activeView: parsed.activeView ?? defaultState.activeView,
-      activeProviderId: parsed.activeProviderId ?? defaultState.activeProviderId,
-    };
+    const state = JSON.parse(raw);
+    return { ...defaultState, ...state };
   } catch {
     return defaultState;
   }
+}
+
+export async function detectAndSetCountry(): Promise<string> {
+  const country = await detectCountry();
+  localStorage.setItem('barcode-country', country);
+  return country;
 }
 
 export function saveState(state: AppState) {
@@ -37,9 +117,6 @@ export function saveState(state: AppState) {
 }
 
 export function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
   return Math.random().toString(36).slice(2, 10);
 }
 
