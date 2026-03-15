@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
 import { GroceryItem, Provider, Priority, ValueRating, Category } from '../types';
-import { generateId, allCategories, categoryLabels, categoryEmoji, lookupPrice } from '../store';
+import { generateId, allCategories, categoryEmoji, lookupPrice, getCategoryLabels, Locale } from '../store';
 
 interface Props {
   providers: Provider[];
   onAdd: (item: GroceryItem) => void;
   onClose: () => void;
   defaultProviderId?: string;
+  locale: Locale;
 }
 
-export default function AddItemSheet({ providers, onAdd, onClose, defaultProviderId }: Props) {
+export default function AddItemSheet({ providers, onAdd, onClose, defaultProviderId, locale }: Props) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<Category>('vegetables');
   const [providerId, setProviderId] = useState(defaultProviderId ?? (providers[0]?.id ?? ''));
@@ -135,7 +136,7 @@ export default function AddItemSheet({ providers, onAdd, onClose, defaultProvide
               <label className="form-label">Category</label>
               <select className="form-select" value={category} onChange={e => setCategory(e.target.value as Category)}>
                 {allCategories.map(c => (
-                  <option key={c} value={c}>{categoryEmoji[c]} {categoryLabels[c]}</option>
+                  <option key={c} value={c}>{categoryEmoji[c]} {getCategoryLabels(locale)[c]}</option>
                 ))}
               </select>
             </div>

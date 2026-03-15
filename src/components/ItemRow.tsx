@@ -1,6 +1,6 @@
-import { Check, Trash2, RotateCcw } from 'lucide-react';
-import { GroceryItem, Provider } from '../types';
-import { categoryEmoji } from '../store';
+import { Check, Trash2 } from 'lucide-react';
+import { GroceryItem, Provider, CurrencyCode } from '../types';
+import { categoryEmoji, formatPrice } from '../store';
 
 interface Props {
   item: GroceryItem;
@@ -8,6 +8,7 @@ interface Props {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   showProvider?: boolean;
+  currency: CurrencyCode;
 }
 
 const priorityLabel = {
@@ -22,7 +23,7 @@ const priorityClass = {
   'splurge': 'badge-priority-splurge',
 };
 
-export default function ItemRow({ item, provider, onToggle, onDelete, showProvider = false }: Props) {
+export default function ItemRow({ item, provider, onToggle, onDelete, showProvider = false, currency }: Props) {
   return (
     <div className={`item-row ${item.ordered ? 'ordered' : ''}`}>
       <button
@@ -65,7 +66,7 @@ export default function ItemRow({ item, provider, onToggle, onDelete, showProvid
             </span>
           )}
           {item.priceEstimate != null && (
-            <span className="caption">£{item.priceEstimate.toFixed(2)}</span>
+            <span className="caption">{formatPrice(item.priceEstimate, currency)}</span>
           )}
         </div>
       </div>

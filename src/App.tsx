@@ -1,25 +1,41 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus } from 'lucide-react';
-import { AppState, GroceryItem, Provider, View, Category } from './types';
+import { Plus, Settings } from 'lucide-react';
+import { AppState, GroceryItem, Provider, View, Category, CurrencyCode, Product } from './types';
 import {
-  loadState, saveState, categoryLabels, categoryEmoji, allCategories,
-  getNextDelivery, formatDate, isUrgent, scrapeUrl,
+  loadState, saveState, categoryEmoji, allCategories,
+  isUrgent, scrapeUrl, detectAndSetCountry, currencySymbols,
+  getCategoryLabels, getUILabel, formatPrice, getLocaleFromCountry, Locale, generateId,
+  getProductVariants, getCheapestVariantForType, lookupPrice,
 } from './store';
 import AddItemSheet from './components/AddItemSheet';
 import AddProviderSheet from './components/AddProviderSheet';
 import UploadReceiptSheet from './components/UploadReceiptSheet';
+import SettingsSheet from './components/SettingsSheet';
 import ItemRow from './components/ItemRow';
 import ProviderCard from './components/ProviderCard';
+import ProductsTab from './components/ProductsTab';
+import ProductFormSheet from './components/ProductFormSheet';
+import ProductDetailView from './components/ProductDetailView';
 
 export default function App() {
   const [state, setState] = useState<AppState>(loadState);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddProvider, setShowAddProvider] = useState(false);
   const [showUploadReceipt, setShowUploadReceipt] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [prefillProviderId, setPrefillProviderId] = useState<string | undefined>();
-  const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all');
   const [filterProvider, setFilterProvider] = useState<string>('all');
   const [showOrdered, setShowOrdered] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  // Auto-detect country on first load
+  useEffect(() => {
+    const stored = localStorage.getItem('barcode-country');
+    if (!stored) {
+      detectAndSetCountry().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => { saveState(state); }, [state]);
 
@@ -31,11 +47,10 @@ export default function App() {
   const filteredItems = useMemo(() => {
     return state.items.filter(item => {
       if (!showOrdered && item.ordered) return false;
-      if (filterCategory !== 'all' && item.category !== filterCategory) return false;
       if (filterProvider !== 'all' && item.providerId !== filterProvider) return false;
       return true;
     });
-  }, [state.items, filterCategory, filterProvider, showOrdered]);
+  }, [state.items, filterProvider, showOrdered]);
 
   const pendingItems = filteredItems.filter(i => !i.ordered);
   const orderedItems = filteredItems.filter(i => i.ordered);
@@ -139,6 +154,80 @@ export default function App() {
     mutate(s => ({ ...s, activeView: v }));
   }
 
+  function setCurrency(c: CurrencyCode) {
+    mutate(s => ({ ...s, currency: c }));
+  }
+
+  function setCountry(c: string) {
+    localStorage.setItem('barcode-country', c);
+    const newLocale = getLocaleFromCountry(c);
+    mutate(s => ({ ...s, country: c, locale: newLocale }));
+  }
+
+  function setLocale(l: Locale) {
+    mutate(s => ({ ...s, locale: l }));
+  }
+
+  // ── Product Handlers ─────────────────────────────────────────────────────
+  function addProduct(product: Product) {
+    mutate(s => ({ ...s, products: [...s.products, product] }));
+  }
+
+  function updateProductPrice(variantId: string, price: number) {
+    mutate(s => ({
+      ...s,
+      productVariants: s.productVariants.map(v =>
+        v.id === variantId ? { ...v, priceEstimate: price, priceUpdatedAt: new Date().toISOString() } : v
+      ),
+    }));
+  }
+
+  async function updateProductPrices(productId: string) {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+
+    const variants = getProductVariants(state, productId);
+
+    for (const variant of variants) {
+      const provider = state.providers.find(p => p.id === variant.providerId);
+      if (!provider?.scrapedText) continue;
+
+      const match = lookupPrice(product.name, provider.scrapedText);
+      if (match) {
+        updateProductPrice(variant.id, match.price);
+      }
+    }
+  }
+
+  function smartAddProduct(productId: string, preferOrganic: boolean) {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+
+    const cheapest = getCheapestVariantForType(state, productId, preferOrganic);
+    if (!cheapest) return;
+
+    const provider = state.providers.find(p => p.id === cheapest.providerId);
+    if (!provider) return;
+
+    const item: GroceryItem = {
+      id: generateId(),
+      name: product.name,
+      category: product.category,
+      providerId: cheapest.providerId,
+      quantity: cheapest.notes || '1',
+      isOrganic: cheapest.isOrganic,
+      priority: 'essential',
+      valueRating: 2,
+      priceEstimate: cheapest.priceEstimate,
+      addedAt: new Date().toISOString(),
+      ordered: false,
+      recurring: true,
+    };
+
+    addItem(item);
+    setSelectedProductId(null);
+  }
+
   return (
     <div className="app">
       {/* ── Header ── */}
@@ -147,23 +236,37 @@ export default function App() {
           <span className="app-logo-name brush-accent">Barcode</span>
           <span className="app-logo-tag">grocery</span>
         </div>
-        {totalPending > 0 && (
-          <span className="badge badge-organic" style={{ fontSize: '0.75rem' }}>
-            {totalPending} pending
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {totalPending > 0 && (
+            <span className="badge badge-organic" style={{ fontSize: '0.75rem' }}>
+              {totalPending} {getUILabel(state.locale, 'pending')}
+            </span>
+          )}
+          <span style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', fontWeight: 500 }}>
+            {currencySymbols[state.currency]}
           </span>
-        )}
+          <span style={{ fontSize: '0.625rem', color: 'var(--ink-muted)', padding: '2px 6px', background: 'var(--paper-deep)', borderRadius: '3px' }}>
+            v{__APP_VERSION__}
+          </span>
+          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings">
+            <Settings size={16} />
+          </button>
+        </div>
       </header>
 
       {/* ── Nav ── */}
       <nav className="nav-tabs">
         <button className={`nav-tab ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')}>
-          List
+          {getUILabel(state.locale, 'list')}
         </button>
         <button className={`nav-tab ${view === 'providers' ? 'active' : ''}`} onClick={() => setView('providers')}>
-          Providers
+          {getUILabel(state.locale, 'providers')}
+        </button>
+        <button className={`nav-tab ${view === 'products' ? 'active' : ''}`} onClick={() => setView('products')}>
+          Products
         </button>
         <button className={`nav-tab ${view === 'history' ? 'active' : ''}`} onClick={() => setView('history')}>
-          History
+          {getUILabel(state.locale, 'history')}
         </button>
       </nav>
 
@@ -187,7 +290,7 @@ export default function App() {
                 <span style={{ fontSize: '1rem' }}>⚡</span>
                 <div>
                   <div style={{ fontWeight: 500, color: 'var(--urgent)', fontSize: '0.875rem' }}>
-                    Order deadline approaching
+                    {getUILabel(state.locale, 'orderDeadline')}
                   </div>
                   <div className="caption">
                     {urgentProviders.map(p => p.name).join(', ')}
@@ -202,19 +305,19 @@ export default function App() {
             <div className="summary-bar">
               <div className="summary-stat">
                 <span className="summary-stat-value">{totalPending}</span>
-                <span className="summary-stat-label">Items</span>
+                <span className="summary-stat-label">{getUILabel(state.locale, 'items')}</span>
               </div>
               <div className="summary-divider" />
               <div className="summary-stat">
                 <span className="summary-stat-value">{totalOrganic}</span>
-                <span className="summary-stat-label">Organic</span>
+                <span className="summary-stat-label">{getUILabel(state.locale, 'organicCount')}</span>
               </div>
               <div className="summary-divider" />
               <div className="summary-stat">
                 <span className="summary-stat-value" style={{ fontSize: '1.1rem' }}>
-                  {estimatedTotal > 0 ? `£${estimatedTotal.toFixed(0)}` : '—'}
+                  {estimatedTotal > 0 ? formatPrice(estimatedTotal, state.currency) : '—'}
                 </span>
-                <span className="summary-stat-label">Est. total</span>
+                <span className="summary-stat-label">{getUILabel(state.locale, 'estTotal')}</span>
               </div>
             </div>
           )}
@@ -227,7 +330,7 @@ export default function App() {
                 onClick={() => setFilterProvider('all')}
                 style={{ flexShrink: 0 }}
               >
-                All providers
+                {getUILabel(state.locale, 'allProviders')}
               </button>
               {state.providers.map(p => (
                 <button
@@ -247,10 +350,10 @@ export default function App() {
             <div className="empty">
               <div className="empty-icon">🌿</div>
               <div className="empty-text">
-                Your list is empty. Add items to start planning your orders.
+                {getUILabel(state.locale, 'emptyList')}
               </div>
               <button className="btn btn-ghost" onClick={() => openAddItem()}>
-                Add first item
+                {getUILabel(state.locale, 'addFirstItem')}
               </button>
             </div>
           )}
@@ -259,6 +362,7 @@ export default function App() {
           {allCategories.map(cat => {
             const catItems = groupedByCategory[cat];
             if (!catItems?.length) return null;
+            const categoryLabels = getCategoryLabels(state.locale);
             return (
               <div key={cat}>
                 <div className="section-label">
@@ -273,6 +377,7 @@ export default function App() {
                       onToggle={toggleItem}
                       onDelete={deleteItem}
                       showProvider={filterProvider === 'all'}
+                      currency={state.currency}
                     />
                   ))}
                 </div>
@@ -296,12 +401,12 @@ export default function App() {
                 }}
                 onClick={() => setShowOrdered(!showOrdered)}
               >
-                {showOrdered ? 'Hide ordered' : `Show ${state.items.filter(i => i.ordered).length} ordered items`}
+                {showOrdered ? getUILabel(state.locale, 'hideOrdered') : `${getUILabel(state.locale, 'showOrdered')} ${state.items.filter(i => i.ordered).length} ${getUILabel(state.locale, 'orderedItems')}`}
               </button>
 
               {showOrdered && (
                 <div>
-                  <div className="section-label" style={{ marginTop: '12px' }}>Ordered</div>
+                  <div className="section-label" style={{ marginTop: '12px' }}>{getUILabel(state.locale, 'ordered')}</div>
                   <div className="item-list">
                     {orderedItems.map(item => (
                       <ItemRow
@@ -311,6 +416,7 @@ export default function App() {
                         onToggle={toggleItem}
                         onDelete={deleteItem}
                         showProvider
+                        currency={state.currency}
                       />
                     ))}
                   </div>
@@ -327,7 +433,7 @@ export default function App() {
                 style={{ fontSize: '0.8125rem' }}
                 onClick={resetOrderedItems}
               >
-                🔄 Reset weekly staples
+                {getUILabel(state.locale, 'resetWeekly')}
               </button>
             </div>
           )}
@@ -342,9 +448,9 @@ export default function App() {
           {state.providers.length === 0 ? (
             <div className="empty">
               <div className="empty-icon">🏪</div>
-              <div className="empty-text">No providers yet. Add your grocery stores.</div>
+              <div className="empty-text">{getUILabel(state.locale, 'emptyProviders')}</div>
               <button className="btn btn-ghost" onClick={() => setShowAddProvider(true)}>
-                Add provider
+                {getUILabel(state.locale, 'addProvider2')}
               </button>
             </div>
           ) : (
@@ -368,6 +474,22 @@ export default function App() {
       )}
 
       {/* ════════════════════════════════════════════
+          VIEW: PRODUCTS
+      ════════════════════════════════════════════ */}
+      {view === 'products' && (
+        <div>
+          <ProductsTab
+            products={state.products}
+            state={state}
+            currency={state.currency}
+            onAddProduct={() => setShowAddProduct(true)}
+            onProductClick={setSelectedProductId}
+          />
+          <div style={{ marginBottom: '80px' }} />
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════
           VIEW: HISTORY
       ════════════════════════════════════════════ */}
       {view === 'history' && (
@@ -375,28 +497,28 @@ export default function App() {
           {state.items.filter(i => i.ordered).length === 0 ? (
             <div className="empty">
               <div className="empty-icon">📋</div>
-              <div className="empty-text">Nothing ordered yet. Complete some items to see history here.</div>
+              <div className="empty-text">{getUILabel(state.locale, 'emptyHistory')}</div>
             </div>
           ) : (
             <div>
               <div className="summary-bar" style={{ marginBottom: '20px' }}>
                 <div className="summary-stat">
                   <span className="summary-stat-value">{state.items.filter(i => i.ordered).length}</span>
-                  <span className="summary-stat-label">Ordered</span>
+                  <span className="summary-stat-label">{getUILabel(state.locale, 'totalOrdered')}</span>
                 </div>
                 <div className="summary-divider" />
                 <div className="summary-stat">
                   <span className="summary-stat-value">
-                    £{state.items.filter(i => i.ordered && i.priceEstimate).reduce((s, i) => s + (i.priceEstimate ?? 0), 0).toFixed(0)}
+                    {formatPrice(state.items.filter(i => i.ordered && i.priceEstimate).reduce((s, i) => s + (i.priceEstimate ?? 0), 0), state.currency)}
                   </span>
-                  <span className="summary-stat-label">Spent</span>
+                  <span className="summary-stat-label">{getUILabel(state.locale, 'spent')}</span>
                 </div>
                 <div className="summary-divider" />
                 <div className="summary-stat">
                   <span className="summary-stat-value">
                     {state.items.filter(i => i.ordered && i.isOrganic).length}
                   </span>
-                  <span className="summary-stat-label">Organic</span>
+                  <span className="summary-stat-label">{getUILabel(state.locale, 'organicCount')}</span>
                 </div>
               </div>
 
@@ -415,6 +537,7 @@ export default function App() {
                           item={item}
                           onToggle={toggleItem}
                           onDelete={deleteItem}
+                          currency={state.currency}
                         />
                       ))}
                     </div>
@@ -466,6 +589,7 @@ export default function App() {
           onAdd={addItem}
           onClose={() => setShowAddItem(false)}
           defaultProviderId={prefillProviderId}
+          locale={state.locale}
         />
       )}
 
@@ -481,6 +605,37 @@ export default function App() {
           providerId={state.providers[0].id}
           onItemsExtracted={addItems}
           onClose={() => setShowUploadReceipt(false)}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsSheet
+          currency={state.currency}
+          country={state.country}
+          locale={state.locale}
+          onCurrencyChange={setCurrency}
+          onCountryChange={setCountry}
+          onLocaleChange={setLocale}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showAddProduct && (
+        <ProductFormSheet
+          onAdd={addProduct}
+          onClose={() => setShowAddProduct(false)}
+          locale={state.locale}
+        />
+      )}
+
+      {selectedProductId && state.products.find(p => p.id === selectedProductId) && (
+        <ProductDetailView
+          product={state.products.find(p => p.id === selectedProductId) as Product}
+          state={state}
+          currency={state.currency}
+          onAddToList={smartAddProduct}
+          onUpdatePrices={updateProductPrices}
+          onClose={() => setSelectedProductId(null)}
         />
       )}
     </div>

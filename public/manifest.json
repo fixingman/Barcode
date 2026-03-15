@@ -1,0 +1,57 @@
+{
+  "name": "Barcode — Organic Grocery Planner",
+  "short_name": "Barcode",
+  "description": "Plan, compare, and order organic groceries from multiple providers. Track prices, delivery schedules, and find the best deals.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1a1410",
+  "background_color": "#f5f0e8",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshot-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["shopping", "productivity"],
+  "screenshots_labels": {
+    "title": "Barcode - Grocery Planning",
+    "description": "Plan organic groceries with price comparison"
+  },
+  "prefer_related_applications": false
+}

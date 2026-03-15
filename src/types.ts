@@ -32,6 +32,24 @@ export interface GroceryItem {
   recurring: boolean; // always reorder
 }
 
+export interface Product {
+  id: string; // e.g. "prod_kale_123"
+  name: string; // e.g. "Kale"
+  category: Category;
+  notes?: string; // e.g. "Preferably organic"
+  createdAt: string; // ISO date
+}
+
+export interface ProductVariant {
+  id: string; // e.g. "var_kale_organic_tesco"
+  productId: string; // Reference to Product
+  providerId: string; // Which provider
+  isOrganic: boolean; // Variant: organic vs conventional
+  priceEstimate?: number; // Latest scraped price
+  priceUpdatedAt?: string; // ISO date of last price lookup
+  notes?: string; // e.g. "500g bunch"
+}
+
 export type Category =
   | 'vegetables'
   | 'fruits'
@@ -52,12 +70,19 @@ export interface OrderSession {
   notes?: string;
 }
 
+export type CurrencyCode = 'GBP' | 'USD' | 'EUR' | 'AUD' | 'CAD' | 'NZD' | 'SEK' | 'NOK' | 'DKK' | 'CHF';
+
 export interface AppState {
   providers: Provider[];
   items: GroceryItem[];
+  products: Product[];
+  productVariants: ProductVariant[];
   sessions: OrderSession[];
   activeView: View;
   activeProviderId: string | null;
+  currency: CurrencyCode;
+  country: string; // ISO 3166-1 alpha-2 code (e.g., 'GB', 'US', 'SE')
+  locale: 'en' | 'sv' | 'no' | 'da'; // UI language
 }
 
-export type View = 'inbox' | 'list' | 'providers' | 'history';
+export type View = 'list' | 'providers' | 'products' | 'history';

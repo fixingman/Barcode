@@ -1,23 +1,111 @@
-import { AppState, Provider, Category } from './types';
+import { AppState, Provider, Category, Product, ProductVariant } from './types';
 
 const STORAGE_KEY = 'barcode-v1';
 
-const defaultState: AppState = {
-  providers: [],
-  items: [],
-  sessions: [],
-  activeView: 'list',
-  activeProviderId: null,
+// Extended currency type
+export type CurrencyCode = 'GBP' | 'USD' | 'EUR' | 'AUD' | 'CAD' | 'NZD' | 'SEK' | 'NOK' | 'DKK' | 'CHF';
+
+// Map country codes to currencies
+const countryToCurrency: Record<string, CurrencyCode> = {
+  // Anglophone
+  GB: 'GBP', US: 'USD', CA: 'CAD', AU: 'AUD', NZ: 'NZD',
+  // Euro
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', BE: 'EUR', NL: 'EUR', AT: 'EUR',
+  IE: 'EUR', FI: 'EUR', GR: 'EUR', PT: 'EUR', LU: 'EUR', MT: 'EUR', CY: 'EUR',
+  // Scandinavia
+  SE: 'SEK', NO: 'NOK', DK: 'DKK',
+  // Switzerland
+  CH: 'CHF',
 };
+
+export const currencySymbols: Record<CurrencyCode, string> = {
+  GBP: '£',
+  USD: '$',
+  EUR: '€',
+  AUD: 'A$',
+  CAD: 'C$',
+  NZD: 'NZ$',
+  SEK: 'kr',
+  NOK: 'kr',
+  DKK: 'kr',
+  CHF: 'CHF',
+};
+
+// Locale codes for Intl formatting
+export const currencyLocales: Record<CurrencyCode, string> = {
+  GBP: 'en-GB',
+  USD: 'en-US',
+  EUR: 'de-DE',
+  AUD: 'en-AU',
+  CAD: 'en-CA',
+  NZD: 'en-NZ',
+  SEK: 'sv-SE',
+  NOK: 'nb-NO',
+  DKK: 'da-DK',
+  CHF: 'de-CH',
+};
+
+export const countryNames: Record<string, string> = {
+  // Anglophone
+  GB: 'United Kingdom', US: 'United States', CA: 'Canada', AU: 'Australia', NZ: 'New Zealand',
+  // Euro
+  DE: 'Germany', FR: 'France', IT: 'Italy', ES: 'Spain', BE: 'Belgium', NL: 'Netherlands',
+  AT: 'Austria', IE: 'Ireland', FI: 'Finland', GR: 'Greece', PT: 'Portugal', LU: 'Luxembourg',
+  MT: 'Malta', CY: 'Cyprus',
+  // Scandinavia
+  SE: 'Sweden', NO: 'Norway', DK: 'Denmark',
+  // Switzerland
+  CH: 'Switzerland',
+};
+
+async function detectCountry(): Promise<string> {
+  try {
+    // Use ipapi.co (free, no key needed, returns JSON with country_code)
+    const res = await fetch('https://ipapi.co/json/', { mode: 'cors' });
+    if (!res.ok) throw new Error('IP lookup failed');
+    const data = await res.json();
+    return (data.country_code || 'GB').toUpperCase();
+  } catch {
+    // Fallback to GB (UK)
+    return 'GB';
+  }
+}
+
+function getDefaultState(): AppState {
+  const country = localStorage.getItem('barcode-country') || 'GB';
+  const currency = countryToCurrency[country] || 'GBP';
+  const locale = getLocaleFromCountry(country);
+  return {
+    providers: [],
+    items: [],
+    products: [],
+    productVariants: [],
+    sessions: [],
+    activeView: 'list',
+    activeProviderId: null,
+    currency,
+    country,
+    locale,
+  };
+}
+
+const defaultState: AppState = getDefaultState();
 
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState;
-    return { ...defaultState, ...JSON.parse(raw) };
+    const state = JSON.parse(raw);
+    return { ...defaultState, ...state };
   } catch {
     return defaultState;
   }
+}
+
+export async function detectAndSetCountry(): Promise<string> {
+  const country = await detectCountry();
+  localStorage.setItem('barcode-country', country);
+  return country;
 }
 
 export function saveState(state: AppState) {
@@ -109,18 +197,90 @@ export function parseReceiptText(ocrText: string): ParsedGroceryItem[] {
   const lines = ocrText.split('\n').filter(l => l.trim());
   const pricePattern = /[£$€](\d+\.?\d{0,2})|(\d+\.?\d{0,2})\s*(?:GBP|USD|EUR|£|$|€)/i;
 
-  // Keywords for categorization
+  // Keywords for categorization (English + Swedish + Norwegian + Danish)
   const categories = {
-    vegetables: ['broccoli', 'kale', 'spinach', 'carrot', 'potato', 'onion', 'lettuce', 'tomato', 'cucumber', 'pepper', 'cabbage', 'celery', 'bean', 'pea'],
-    fruits: ['apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'melon', 'mango', 'pineapple', 'lemon', 'lime', 'berry'],
-    'dairy-eggs': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'egg', 'dairy'],
-    'meat-fish': ['chicken', 'beef', 'pork', 'lamb', 'fish', 'salmon', 'tuna', 'steak', 'meat'],
-    'bread-bakery': ['bread', 'loaf', 'bagel', 'roll', 'croissant', 'bun', 'cake', 'pastry'],
-    pantry: ['rice', 'pasta', 'oil', 'flour', 'sugar', 'salt', 'spice', 'sauce', 'can', 'jar', 'cereal', 'nuts', 'coffee', 'tea'],
-    drinks: ['juice', 'water', 'soda', 'cola', 'milk', 'coffee', 'tea', 'wine', 'beer', 'drink'],
+    vegetables: [
+      // English
+      'broccoli', 'kale', 'spinach', 'carrot', 'potato', 'onion', 'lettuce', 'tomato', 'cucumber', 'pepper', 'cabbage', 'celery', 'bean', 'pea',
+      // Swedish
+      'broccoli', 'grönkål', 'spenat', 'morot', 'potatis', 'lök', 'sallad', 'tomat', 'gurka', 'paprika', 'kål', 'selleri', 'böna', 'ärta', 'grönsaker',
+      // Norwegian
+      'brokkoli', 'grønnkål', 'spinat', 'gulrot', 'potet', 'løk', 'salat', 'tomat', 'agurk', 'paprika', 'kål', 'selleri', 'bønne', 'erter', 'grønnsaker',
+      // Danish
+      'broccoli', 'grønkål', 'spinat', 'gulerod', 'kartoffel', 'løg', 'salat', 'tomat', 'agurk', 'peberfrugt', 'kål', 'selleri', 'bønne', 'ært', 'grøntsager',
+    ],
+    fruits: [
+      // English
+      'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'melon', 'mango', 'pineapple', 'lemon', 'lime', 'berry',
+      // Swedish
+      'äpple', 'banan', 'apelsin', 'druvor', 'jordgubbar', 'blåbär', 'melon', 'mango', 'ananas', 'citron', 'lime', 'frukt',
+      // Norwegian
+      'eple', 'banan', 'appelsin', 'druer', 'jordbær', 'blåbær', 'melon', 'mango', 'ananas', 'sitron', 'lime', 'frukt',
+      // Danish
+      'æble', 'banan', 'appelsin', 'druer', 'jordbær', 'blåbær', 'melon', 'mango', 'ananas', 'citron', 'lime', 'frugt',
+    ],
+    'dairy-eggs': [
+      // English
+      'milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'egg', 'dairy',
+      // Swedish
+      'mjölk', 'ost', 'yoghurt', 'smör', 'grädde', 'ägg', 'mejeriprodukter',
+      // Norwegian
+      'melk', 'ost', 'yogurt', 'smør', 'fløte', 'egg', 'melkeprodukt',
+      // Danish
+      'mælk', 'ost', 'yoghurt', 'smør', 'fløde', 'æg', 'mejeriprodukter',
+    ],
+    'meat-fish': [
+      // English
+      'chicken', 'beef', 'pork', 'lamb', 'fish', 'salmon', 'tuna', 'steak', 'meat',
+      // Swedish
+      'kyckling', 'nötkött', 'fläsk', 'lamm', 'fisk', 'lax', 'tonfisk', 'biff', 'kött',
+      // Norwegian
+      'kylling', 'storfekjøtt', 'svinekjøtt', 'lam', 'fisk', 'laks', 'tun', 'biff', 'kjøtt',
+      // Danish
+      'kylling', 'oksekød', 'svinekød', 'lam', 'fisk', 'laks', 'tun', 'bøf', 'kød',
+    ],
+    'bread-bakery': [
+      // English
+      'bread', 'loaf', 'bagel', 'roll', 'croissant', 'bun', 'cake', 'pastry',
+      // Swedish
+      'bröd', 'limpa', 'bagel', 'fralla', 'croissant', 'bullar', 'tårta', 'bakverk',
+      // Norwegian
+      'brød', 'loff', 'bagel', 'bolle', 'croissant', 'bløtkake', 'kake', 'bakevarer',
+      // Danish
+      'brød', 'limpet', 'bagel', 'rundstykker', 'croissant', 'boller', 'kage', 'bagevarer',
+    ],
+    pantry: [
+      // English
+      'rice', 'pasta', 'oil', 'flour', 'sugar', 'salt', 'spice', 'sauce', 'can', 'jar', 'cereal', 'nuts', 'coffee', 'tea',
+      // Swedish
+      'ris', 'pasta', 'olja', 'mjöl', 'socker', 'salt', 'krydda', 'sås', 'burk', 'kryddor', 'kaffe', 'te', 'flingor',
+      // Norwegian
+      'ris', 'pasta', 'olje', 'mel', 'sukker', 'salt', 'krydder', 'saus', 'boks', 'krydderi', 'kaffe', 'te', 'frokostblanding',
+      // Danish
+      'ris', 'pasta', 'olie', 'mel', 'sukker', 'salt', 'krydder', 'sovs', 'dåse', 'krydderi', 'kaffe', 'te', 'morgenmad',
+    ],
+    drinks: [
+      // English
+      'juice', 'water', 'soda', 'cola', 'milk', 'coffee', 'tea', 'wine', 'beer', 'drink',
+      // Swedish
+      'juice', 'vatten', 'läsk', 'cola', 'mjölk', 'kaffe', 'te', 'vin', 'öl', 'dryck',
+      // Norwegian
+      'juice', 'vann', 'brus', 'cola', 'melk', 'kaffe', 'te', 'vin', 'øl', 'drikk',
+      // Danish
+      'saft', 'vand', 'lemonade', 'cola', 'mælk', 'kaffe', 'te', 'vin', 'øl', 'drik',
+    ],
   };
 
-  const organicKeywords = ['organic', 'bio', 'natural', 'free-range', 'grass-fed', 'non-gmo'];
+  const organicKeywords = [
+    // English
+    'organic', 'bio', 'natural', 'free-range', 'grass-fed', 'non-gmo',
+    // Swedish
+    'ekologisk', 'biologisk', 'naturlig', 'frilandskyckling', 'gräsfodrad', 'utan-gmo',
+    // Norwegian
+    'økologisk', 'biologisk', 'naturlig', 'frilands', 'gressfôret', 'gmo-fritt',
+    // Danish
+    'økologisk', 'biologisk', 'naturlig', 'friland', 'græsfodret', 'gmo-frit',
+  ];
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -175,17 +335,214 @@ export function parseReceiptText(ocrText: string): ParsedGroceryItem[] {
   return items;
 }
 
-export const categoryLabels: Record<string, string> = {
-  vegetables: 'Vegetables',
-  fruits: 'Fruits',
-  'dairy-eggs': 'Dairy & Eggs',
-  'meat-fish': 'Meat & Fish',
-  pantry: 'Pantry',
-  'bread-bakery': 'Bread & Bakery',
-  drinks: 'Drinks',
-  household: 'Household',
-  other: 'Other',
-};
+// Localization system: English, Swedish, Norwegian, Danish, German, French
+export const i18n = {
+  en: {
+    categories: {
+      vegetables: 'Vegetables',
+      fruits: 'Fruits',
+      'dairy-eggs': 'Dairy & Eggs',
+      'meat-fish': 'Meat & Fish',
+      pantry: 'Pantry',
+      'bread-bakery': 'Bread & Bakery',
+      drinks: 'Drinks',
+      household: 'Household',
+      other: 'Other',
+    },
+    ui: {
+      addItem: 'Add item',
+      scan: 'Scan',
+      addProvider: 'Add provider',
+      list: 'List',
+      providers: 'Providers',
+      history: 'History',
+      pending: 'pending',
+      essential: 'Essential',
+      niceToHave: 'Nice to have',
+      splurge: 'Splurge',
+      organic: '🌱 Organic',
+      conventional: 'Conventional',
+      weekly: '🔄 Weekly staple',
+      oneTime: 'One-time',
+      ordered: 'Ordered',
+      notOrdered: 'Not ordered',
+      items: 'Items',
+      organicCount: 'Organic',
+      estTotal: 'Est. total',
+      allProviders: 'All providers',
+      orderDeadline: 'Order deadline approaching',
+      emptyList: 'Your list is empty. Add items to start planning your orders.',
+      addFirstItem: 'Add first item',
+      showOrdered: 'Show',
+      hideOrdered: 'Hide ordered',
+      orderedItems: 'ordered items',
+      resetWeekly: '🔄 Reset weekly staples',
+      emptyProviders: 'No providers yet. Add your grocery stores.',
+      addProvider2: 'Add provider',
+      emptyHistory: 'Nothing ordered yet. Complete some items to see history here.',
+      totalOrdered: 'Ordered',
+      spent: 'Spent',
+    },
+  },
+  sv: {
+    categories: {
+      vegetables: 'Grönsaker',
+      fruits: 'Frukter',
+      'dairy-eggs': 'Mejeri & Ägg',
+      'meat-fish': 'Kött & Fisk',
+      pantry: 'Skafferi',
+      'bread-bakery': 'Bröd & Bakverk',
+      drinks: 'Drycker',
+      household: 'Hushåll',
+      other: 'Övrigt',
+    },
+    ui: {
+      addItem: 'Lägg till vara',
+      scan: 'Skanna',
+      addProvider: 'Lägg till butik',
+      list: 'Lista',
+      providers: 'Butiker',
+      history: 'Historik',
+      pending: 'väntar',
+      essential: 'Väsentlig',
+      niceToHave: 'Snäll att ha',
+      splurge: 'Lyxvara',
+      organic: '🌱 Ekologisk',
+      conventional: 'Konventionell',
+      weekly: '🔄 Veckovara',
+      oneTime: 'Engångsvara',
+      ordered: 'Beställd',
+      notOrdered: 'Inte beställd',
+      items: 'Varor',
+      organicCount: 'Ekologisk',
+      estTotal: 'Upps. totalt',
+      allProviders: 'Alla butiker',
+      orderDeadline: 'Beställningsfrist närmar sig',
+      emptyList: 'Din lista är tom. Lägg till varor för att börja planera dina beställningar.',
+      addFirstItem: 'Lägg till första vara',
+      showOrdered: 'Visa',
+      hideOrdered: 'Dölj beställda',
+      orderedItems: 'beställda varor',
+      resetWeekly: '🔄 Återställ veckovara',
+      emptyProviders: 'Inga butiker än. Lägg till dina livsmedelsbutiker.',
+      addProvider2: 'Lägg till butik',
+      emptyHistory: 'Ingenting beställt än. Slutför några varor för att se historik här.',
+      totalOrdered: 'Beställd',
+      spent: 'Spenderad',
+    },
+  },
+  no: {
+    categories: {
+      vegetables: 'Grønnsaker',
+      fruits: 'Frukt',
+      'dairy-eggs': 'Meieri & Egg',
+      'meat-fish': 'Kjøtt & Fisk',
+      pantry: 'Pantry',
+      'bread-bakery': 'Brød & Bakeri',
+      drinks: 'Drikker',
+      household: 'Husholdning',
+      other: 'Annet',
+    },
+    ui: {
+      addItem: 'Legg til vare',
+      scan: 'Skann',
+      addProvider: 'Legg til butikk',
+      list: 'Liste',
+      providers: 'Butikker',
+      history: 'Historie',
+      pending: 'ventende',
+      essential: 'Essensielt',
+      niceToHave: 'Fint å ha',
+      splurge: 'Luksus',
+      organic: '🌱 Økologisk',
+      conventional: 'Konvensjonelt',
+      weekly: '🔄 Ukentlig vare',
+      oneTime: 'Engangs',
+      ordered: 'Bestilt',
+      notOrdered: 'Ikke bestilt',
+      items: 'Varer',
+      organicCount: 'Økologisk',
+      estTotal: 'Est. totalt',
+      allProviders: 'Alle butikker',
+      orderDeadline: 'Bestillingsfristen nærmer seg',
+      emptyList: 'Listen din er tom. Legg til varer for å begynne å planlegge bestillingene dine.',
+      addFirstItem: 'Legg til første vare',
+      showOrdered: 'Vis',
+      hideOrdered: 'Skjul bestilt',
+      orderedItems: 'bestilte varer',
+      resetWeekly: '🔄 Tilbakestill ukentlige varer',
+      emptyProviders: 'Ingen butikker ennå. Legg til dagligvarebutikkene dine.',
+      addProvider2: 'Legg til butikk',
+      emptyHistory: 'Ingenting bestilt ennå. Fullfør noen varer for å se historikken her.',
+      totalOrdered: 'Bestilt',
+      spent: 'Brukt',
+    },
+  },
+  da: {
+    categories: {
+      vegetables: 'Grøntsager',
+      fruits: 'Frugt',
+      'dairy-eggs': 'Mejeriprodukter & Æg',
+      'meat-fish': 'Kød & Fisk',
+      pantry: 'Skabent',
+      'bread-bakery': 'Brød & Bageri',
+      drinks: 'Drikkevarer',
+      household: 'Husholdning',
+      other: 'Øvrigt',
+    },
+    ui: {
+      addItem: 'Tilføj vare',
+      scan: 'Scan',
+      addProvider: 'Tilføj butik',
+      list: 'Liste',
+      providers: 'Butikker',
+      history: 'Historie',
+      pending: 'afventende',
+      essential: 'Væsentlig',
+      niceToHave: 'Rart at have',
+      splurge: 'Luksus',
+      organic: '🌱 Økologisk',
+      conventional: 'Konventionel',
+      weekly: '🔄 Ugentlig vare',
+      oneTime: 'Engangs',
+      ordered: 'Bestilt',
+      notOrdered: 'Ikke bestilt',
+      items: 'Varer',
+      organicCount: 'Økologisk',
+      estTotal: 'Est. i alt',
+      allProviders: 'Alle butikker',
+      orderDeadline: 'Ordrefristen nærmer sig',
+      emptyList: 'Din liste er tom. Tilføj varer for at begynde at planlægge dine ordrer.',
+      addFirstItem: 'Tilføj første vare',
+      showOrdered: 'Vis',
+      hideOrdered: 'Skjul bestilt',
+      orderedItems: 'bestilte varer',
+      resetWeekly: '🔄 Nulstil ugentlige varer',
+      emptyProviders: 'Ingen butikker endnu. Tilføj dine dagligvarebutikker.',
+      addProvider2: 'Tilføj butik',
+      emptyHistory: 'Intet bestilt endnu. Gennemfør nogle varer for at se historikken her.',
+      totalOrdered: 'Bestilt',
+      spent: 'Brugt',
+    },
+  },
+} as const;
+
+export type Locale = keyof typeof i18n;
+
+export function getLocaleFromCountry(country: string): Locale {
+  if (country === 'SE') return 'sv';
+  if (country === 'NO') return 'no';
+  if (country === 'DK') return 'da';
+  return 'en'; // Default to English
+}
+
+export function getCategoryLabels(locale: Locale): Record<string, string> {
+  return i18n[locale]?.categories || i18n.en.categories;
+}
+
+export function getUILabel(locale: Locale, key: keyof typeof i18n.en.ui): string {
+  return i18n[locale]?.ui[key] || i18n.en.ui[key];
+}
 
 export const categoryEmoji: Record<string, string> = {
   vegetables: '🥬',
@@ -198,6 +555,17 @@ export const categoryEmoji: Record<string, string> = {
   household: '🧼',
   other: '📦',
 };
+
+// Format price according to locale and currency
+export function formatPrice(amount: number, currency: CurrencyCode): string {
+  const locale = currencyLocales[currency];
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 
 export const allCategories: Category[] = [
   'vegetables',
@@ -215,8 +583,8 @@ export function getNextDelivery(provider: Provider): Date | null {
   if (!provider.deliveryDays.length) return null;
   const today = new Date();
   const todayDow = today.getDay();
-  // Find the nearest upcoming delivery day (including today)
-  for (let i = 0; i <= 7; i++) {
+  // Find the nearest upcoming delivery day (starting from tomorrow, never today)
+  for (let i = 1; i <= 7; i++) {
     const dow = (todayDow + i) % 7;
     if (provider.deliveryDays.includes(dow)) {
       const d = new Date(today);
@@ -245,4 +613,78 @@ export function isUrgent(provider: Provider): boolean {
   const today = new Date();
   const diff = (deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
   return diff <= 1;
+}
+
+// ── Product Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Get all variants of a product
+ */
+export function getProductVariants(state: AppState, productId: string): ProductVariant[] {
+  return state.productVariants.filter(v => v.productId === productId);
+}
+
+/**
+ * Get product by ID
+ */
+export function getProduct(state: AppState, productId: string): Product | undefined {
+  return state.products.find(p => p.id === productId);
+}
+
+/**
+ * Get the cheapest variant of a product (across all providers and organic status)
+ */
+export function getCheapestVariant(state: AppState, productId: string): ProductVariant | null {
+  const variants = getProductVariants(state, productId);
+  if (!variants.length) return null;
+
+  return variants.reduce((best, current) => {
+    const bestPrice = best.priceEstimate ?? Infinity;
+    const currentPrice = current.priceEstimate ?? Infinity;
+    return currentPrice < bestPrice ? current : best;
+  });
+}
+
+/**
+ * Get cheapest variant for a specific organic preference
+ */
+export function getCheapestVariantForType(
+  state: AppState,
+  productId: string,
+  preferOrganic: boolean
+): ProductVariant | null {
+  const variants = getProductVariants(state, productId);
+  const filtered = preferOrganic
+    ? variants.filter(v => v.isOrganic)
+    : variants;
+
+  if (!filtered.length) return null;
+
+  return filtered.reduce((best, current) => {
+    const bestPrice = best.priceEstimate ?? Infinity;
+    const currentPrice = current.priceEstimate ?? Infinity;
+    return currentPrice < bestPrice ? current : best;
+  });
+}
+
+/**
+ * Get all variants grouped by provider and organic status
+ * Returns: { providerId: { organic: price, conventional: price } }
+ */
+export function getPricesByProduct(
+  state: AppState,
+  productId: string
+): Record<string, { organic?: number; conventional?: number }> {
+  const variants = getProductVariants(state, productId);
+  const result: Record<string, { organic?: number; conventional?: number }> = {};
+
+  for (const variant of variants) {
+    if (!result[variant.providerId]) {
+      result[variant.providerId] = {};
+    }
+    const key = variant.isOrganic ? 'organic' : 'conventional';
+    result[variant.providerId][key] = variant.priceEstimate;
+  }
+
+  return result;
 }
